@@ -17,7 +17,10 @@ int main(int argc, char *argv[]) {
 				strcat(cmd, argv[i+3]);
 				strcat(cmd, " ");
 			}
-			
+
+      if(argc-3) 
+        cmd[strlen(cmd)-1] = 0;
+
 			return worker_execute(argv[2], cmd);
 		}
 		else {

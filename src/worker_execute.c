@@ -128,8 +128,10 @@ static void dump_status(int fd, struct job_state_t* job_state) {
 
   char buffer[1024];
 
-  snprintf(buffer, 1024, "pid: %d\n", job_state->pid);
-  write_text(fd, buffer);
+  if(job_state->status == job_started) {
+    snprintf(buffer, 1024, "pid: %d\n", job_state->pid);
+    write_text(fd, buffer);
+  }
 
   snprintf(buffer, 1024, "duration: %ld\n", now - job_state->started_time);
   write_text(fd, buffer);
@@ -258,8 +260,8 @@ int worker_execute(const char* jobid, const char* cmd) {
 
                   case 0: { // Nothing yet
                       struct timeval timeout;
-                      timeout.tv_sec = 1;
-                      timeout.tv_usec = 0;
+                      timeout.tv_sec = 0;
+                      timeout.tv_usec = 100000;
 
                       int nfds = fd_control;
 
