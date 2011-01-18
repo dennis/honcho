@@ -111,6 +111,12 @@ test_section "honcho cat"
 		diff $HONCHO_QUEUE_DIR/test-01/stdout $HONCHO_QUEUE_DIR/test-01/stdout-via-cat >/dev/null
 		test_okfail $?
 
+test_section "honcho status"
+	test_title "displays status file (!running)"
+		$HONCHO status test-01 >$HONCHO_QUEUE_DIR/test-01/status-via-status
+		diff $HONCHO_QUEUE_DIR/test-01/status $HONCHO_QUEUE_DIR/test-01/status-via-status  >/dev/null
+		test_okfail $?
+
 test_teardown
 
 expr $TEST_FAIL_COUNT = 0 >/dev/null || exit

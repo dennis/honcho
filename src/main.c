@@ -1,10 +1,12 @@
 #include <string.h>
 #include <limits.h>
 #include <unistd.h>
+#include <stdlib.h>
 
 #include "queue.h"
 #include "worker_execute.h"
 #include "worker_cat.h"
+#include "worker_status_query.h"
 
 static char cwd[PATH_MAX];
 
@@ -46,9 +48,13 @@ int main(int argc, char *argv[]) {
     else if(argc == 4 && strcmp(argv[1], "cat") == 0) {
       return worker_cat(argv[2], argv[3]);
     }
+    else if(argc == 3 && strcmp(argv[1], "status") == 0) {
+      return worker_status_query(argv[2]);
+    }
     else {
       puts("honcho execute <ID> <cmd> [args..]");
       puts("honcho cat <ID> <file>");
+      puts("honcho status <ID>");
       return 1;
     }
   }
