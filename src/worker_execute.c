@@ -45,11 +45,6 @@ static int create_file_content(const char* filename, const char *data) {
 }
 
 static int prepare_new_job(const char* jobid) {
-  if(chdir(get_queuedir())==-1) {
-    perror(get_queuedir());
-    return 1;
-  }
-
   if(mkdir(jobid, DIR_MODE)==-1) {
     if(errno == EEXIST) {
       const char* error = "job-id already used, ignoring\n";
@@ -195,7 +190,6 @@ static void write_status(struct job_state_t* job_state) {
 }
 
 int worker_execute(const char* jobid, const char* cmd) {
-  char cwd[PATH_MAX];
   int fd_stdout, fd_stderr;
   int fd_control;
   int fd_client = -1;
@@ -206,127 +200,121 @@ int worker_execute(const char* jobid, const char* cmd) {
   job_state.started_time = 0;
   job_state.status = job_none;
 
-  if(getcwd(cwd, PATH_MAX)) {
-    if(prepare_new_job(jobid) == 0) {
-      if(create_std_files(&fd_stdout, &fd_stderr) == 0) {
-        if(create_control_socket(&fd_control) == 0) {
+  if(prepare_new_job(jobid) == 0) {
+    if(create_std_files(&fd_stdout, &fd_stderr) == 0) {
+      if(create_control_socket(&fd_control) == 0) {
 
-          job_state.started_time = time(NULL);
-          job_state.pid = fork();
-          job_state.status = job_started;
+        job_state.started_time = time(NULL);
+        job_state.pid = fork();
+        job_state.status = job_started;
 
-          create_file_content("command", cmd);
+        create_file_content("command", cmd);
 
-          switch(job_state.pid) {
-          case 0: // Child
-            close(0);
-            close(fd_control);
-
-            dup2(fd_stdout, 1);
-            dup2(fd_stderr, 2);
-
-            close(fd_stdout);
-            close(fd_stderr);
-
-            //system(cmd);
-            char* args[4];
-            args[0] = SHELL_BIN;
-            args[1] = "-c";
-            args[2] = (char*)cmd;
-            args[3] = 0;
-
-            execv(SHELL_BIN, args);
-
-            break;
-          case -1: // failure
-            perror("fork()");
-            return 1;
-            break;
-          default: { // parent
-              {
-                char pid[10];
-                snprintf(pid, 10, "%d", job_state.pid);
-                create_file_content("pid", pid); 
-              }
-
-              int status;
-
-              do {
-                switch(waitpid(job_state.pid, &status, WNOHANG)) {
-                  case -1: // Error
-                    perror("waitpid");
-                    job_state.status = job_done;
-                    break;
-
-                  case 0: { // Nothing yet
-                      struct timeval timeout;
-                      timeout.tv_sec = 0;
-                      timeout.tv_usec = 100000;
-
-                      int nfds = fd_control;
-
-                      fd_set rfds;
-                      FD_ZERO(&rfds);
-                      FD_SET(fd_control, &rfds);
-                      if(fd_client != -1) {
-                        FD_SET(fd_client, &rfds);
-                        if(fd_client > nfds)
-                          nfds = fd_client;
-                      }
-
-                      nfds++;
-
-                      if(select(nfds, &rfds, NULL, NULL, &timeout)) {
-                        if(FD_ISSET(fd_control, &rfds)) {
-                          struct sockaddr_un remote;
-                          int len = sizeof(struct sockaddr_un);
-                          fd_client = accept(fd_control, &remote, &len);
-                        }
-                        if(fd_client != -1 && FD_ISSET(fd_client, &rfds)) {
-                          if(handle_talk(fd_client, &job_state) == -1) {
-                            close(fd_client);
-                            fd_client = -1;
-                           }
-                        }
-                      }
-                    }
-                    break;
-                  default: 
-                    if(WIFEXITED(status)) {
-                      job_state.status = job_done;
-                      char txt[10];
-                      snprintf(txt, 10, "%d", WEXITSTATUS(status));
-                      create_file_content("return_code", txt); 
-                      rc = 0;
-                    }
-                    else if(WIFSIGNALED(status)) {
-                      job_state.status = job_done;
-                      char txt[10];
-                      snprintf(txt, 10, "%d", WTERMSIG(status)+128);
-                      create_file_content("return_code", txt); 
-                      rc = 0;
-                    }
-                }
-              } while(job_state.status == job_started);
-
-              unlink("control");
-              unlink("pid");
-
-              write_status(&job_state);
-            }
-          }
-
+        switch(job_state.pid) {
+        case 0: // Child
+          close(0);
           close(fd_control);
+
+          dup2(fd_stdout, 1);
+          dup2(fd_stderr, 2);
+
+          close(fd_stdout);
+          close(fd_stderr);
+
+          //system(cmd);
+          char* args[4];
+          args[0] = SHELL_BIN;
+          args[1] = "-c";
+          args[2] = (char*)cmd;
+          args[3] = 0;
+
+          execv(SHELL_BIN, args);
+
+          break;
+        case -1: // failure
+          perror("fork()");
+          return 1;
+          break;
+        default: { // parent
+            {
+              char pid[10];
+              snprintf(pid, 10, "%d", job_state.pid);
+              create_file_content("pid", pid); 
+            }
+
+            int status;
+
+            do {
+              switch(waitpid(job_state.pid, &status, WNOHANG)) {
+                case -1: // Error
+                  perror("waitpid");
+                  job_state.status = job_done;
+                  break;
+
+                case 0: { // Nothing yet
+                    struct timeval timeout;
+                    timeout.tv_sec = 0;
+                    timeout.tv_usec = 100000;
+
+                    int nfds = fd_control;
+
+                    fd_set rfds;
+                    FD_ZERO(&rfds);
+                    FD_SET(fd_control, &rfds);
+                    if(fd_client != -1) {
+                      FD_SET(fd_client, &rfds);
+                      if(fd_client > nfds)
+                        nfds = fd_client;
+                    }
+
+                    nfds++;
+
+                    if(select(nfds, &rfds, NULL, NULL, &timeout)) {
+                      if(FD_ISSET(fd_control, &rfds)) {
+                        struct sockaddr_un remote;
+                        int len = sizeof(struct sockaddr_un);
+                        fd_client = accept(fd_control, &remote, &len);
+                      }
+                      if(fd_client != -1 && FD_ISSET(fd_client, &rfds)) {
+                        if(handle_talk(fd_client, &job_state) == -1) {
+                          close(fd_client);
+                          fd_client = -1;
+                          }
+                      }
+                    }
+                  }
+                  break;
+                default: 
+                  if(WIFEXITED(status)) {
+                    job_state.status = job_done;
+                    char txt[10];
+                    snprintf(txt, 10, "%d", WEXITSTATUS(status));
+                    create_file_content("return_code", txt); 
+                    rc = 0;
+                  }
+                  else if(WIFSIGNALED(status)) {
+                    job_state.status = job_done;
+                    char txt[10];
+                    snprintf(txt, 10, "%d", WTERMSIG(status)+128);
+                    create_file_content("return_code", txt); 
+                    rc = 0;
+                  }
+              }
+            } while(job_state.status == job_started);
+
+            unlink("control");
+            unlink("pid");
+
+            write_status(&job_state);
+          }
         }
 
-        close(fd_stderr);
-        close(fd_stdout);
+        close(fd_control);
       }
+
+      close(fd_stderr);
+      close(fd_stdout);
     }
-    chdir(cwd);
-  }
-  else {
-    perror("Cannot get CWD");
   }
 
   return rc;

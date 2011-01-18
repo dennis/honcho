@@ -75,7 +75,7 @@ if test ! -f $HONCHO ; then
 	exit
 fi
 
-test_section "Execute"
+test_section "honcho execute"
 	test_title "creates new directory"
 		$HONCHO execute test-01 echo ping > /dev/null
 		test -d $HONCHO_QUEUE_DIR/test-01
@@ -103,6 +103,12 @@ test_section "Execute"
 
 	test_title "file status is done"
 		cat $HONCHO_QUEUE_DIR/test-01/status | grep "status: done"  >/dev/null
+		test_okfail $?
+
+test_section "honcho cat"
+	test_title "is able to show stdout"
+		$HONCHO cat test-01 stdout >$HONCHO_QUEUE_DIR/test-01/stdout-via-cat
+		diff $HONCHO_QUEUE_DIR/test-01/stdout $HONCHO_QUEUE_DIR/test-01/stdout-via-cat >/dev/null
 		test_okfail $?
 
 test_teardown
