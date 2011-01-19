@@ -4,7 +4,7 @@
 #include <sys/socket.h>
 #include <sys/un.h>
 
-#include "worker_status_query.h"
+#include "cmd_status_query.h"
 
 static int connect_to_control_socket() {
   struct sockaddr_un remote;
@@ -27,7 +27,7 @@ static int connect_to_control_socket() {
   return fd;
 }
 
-int worker_status_query(const char* jobid) {
+int cmd_status_query(const char* jobid) {
   if(chdir(jobid)==-1) {
     perror(jobid);
     return 1;
@@ -55,7 +55,7 @@ int worker_status_query(const char* jobid) {
   }
   else {
     chdir("..");
-    return worker_cat(jobid, "status");
+    return cmd_cat(jobid, "status");
   }
 }
 

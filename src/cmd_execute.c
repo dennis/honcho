@@ -13,7 +13,7 @@
 #include <time.h>
 #include <sys/un.h>
 
-#include "worker_execute.h"
+#include "cmd_execute.h"
 #include "queue.h"
 #include "config.h"
 
@@ -189,7 +189,7 @@ static void write_status(struct job_state_t* job_state) {
   close(fd);
 }
 
-int worker_execute(const char* jobid, const char* cmd) {
+int cmd_execute(const char* jobid, const char* cmd) {
   int fd_stdout, fd_stderr;
   int fd_control;
   int fd_client = -1;

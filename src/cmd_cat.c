@@ -5,9 +5,9 @@
 #include <fcntl.h>
 
 #include "queue.h"
-#include "worker_cat.h"
+#include "cmd_cat.h"
 
-int worker_cat(const char* jobid, const char* file) {
+int cmd_cat(const char* jobid, const char* file) {
   if(chdir(jobid)==-1) {
     perror(jobid);
     return 1;
