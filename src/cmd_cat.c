@@ -17,8 +17,11 @@ int cmd_cat(const char* jobid, const char* file) {
 
   if(fd == -1) {
     perror(file);
+    chdir("..");
     return 1;
   }
+
+  chdir("..");
 
   char buffer[1024];
   ssize_t len;
@@ -28,6 +31,7 @@ int cmd_cat(const char* jobid, const char* file) {
   }
   if(len == -1) {
     perror("write");
+    close(fd);
     return 1;
   }
 

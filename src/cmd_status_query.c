@@ -44,14 +44,14 @@ int cmd_status_query(const char* jobid) {
     while((len = read(fd, buffer, 1023)) > 0) {
       write(1, buffer, len);
     }
+
     if(len == -1) {
       perror("write");
-      close(fd);
-      return 1;
     }
 
+    chdir("..");
     close(fd);
-    return 0;
+    return len == -1 ? 1 : 0;
   }
   else {
     chdir("..");

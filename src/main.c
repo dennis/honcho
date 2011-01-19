@@ -4,8 +4,9 @@
 #include <stdlib.h>
 
 #include "queue.h"
-#include "cmd_execute.h"
 #include "cmd_cat.h"
+#include "cmd_execute.h"
+#include "cmd_status_overview.h"
 #include "cmd_status_query.h"
 
 static char cwd[PATH_MAX];
@@ -51,10 +52,13 @@ int main(int argc, char *argv[]) {
     else if(argc == 3 && strcmp(argv[1], "status") == 0) {
       return cmd_status_query(argv[2]);
     }
+    else if(argc == 2 && strcmp(argv[1], "status") == 0) {
+      return cmd_status_overview();
+    }
     else {
       puts("honcho execute <ID> <cmd> [args..]");
       puts("honcho cat <ID> <file>");
-      puts("honcho status <ID>");
+      puts("honcho status [ID]");
       return 1;
     }
   }
