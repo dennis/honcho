@@ -17,8 +17,10 @@
 #include "queue.h"
 #include "config.h"
 
+#define STDBUF_SIZE 1024
 
-static enum job_status { job_none = 0, job_started, job_done };
+enum job_status { job_none = 0, job_started, job_done };
+
 struct job_state_t {
   pid_t pid;
   time_t started_time;
@@ -181,7 +183,6 @@ static void write_status(struct job_state_t* job_state) {
     char error[512];
     snprintf(error, 512, "Cannot create 'status' for writing");
     perror(error);
-    return 1;
   }
 
   dump_status(fd, job_state);
@@ -189,131 +190,161 @@ static void write_status(struct job_state_t* job_state) {
   close(fd);
 }
 
-int cmd_execute(const char* jobid, const char* cmd) {
-  int fd_stdout, fd_stderr;
+static void child(const char* cmd) {
+  //system(cmd);
+  char* args[4];
+  args[0] = SHELL_BIN;
+  args[1] = "-c";
+  args[2] = (char*)cmd;
+  args[3] = 0;
+
+  execv(SHELL_BIN, args);
+}
+
+static int parent(int pid, int pipe_stdout, int pipe_stderr) {
+  char stdout_buf[STDBUF_SIZE]; stdout_buf[0] = 0;
+  char stderr_buf[STDBUF_SIZE]; stderr_buf[1] = 0;
   int fd_control;
+  int fd_stdout, fd_stderr; // for the 'stdout' and 'stderr' files
   int fd_client = -1;
   int rc = 1;
+  
   struct job_state_t job_state;
 
-  job_state.pid = 0;
-  job_state.started_time = 0;
-  job_state.status = job_none;
+  job_state.started_time = time(NULL);
+  job_state.pid = pid;
+  job_state.status = job_started;
+
+  if(create_std_files(&fd_stdout, &fd_stderr) == 0) {
+    if(create_control_socket(&fd_control) == 0) {
+      char pid[10];
+      snprintf(pid, 10, "%d", job_state.pid);
+      create_file_content("pid", pid); 
+      int status;
+
+      do {
+        switch(waitpid(job_state.pid, &status, WNOHANG)) {
+          case -1: // ErrorS
+            perror("waitpid");
+            job_state.status = job_done;
+            break;
+
+          case 0: { // Nothing yet
+            struct timeval timeout;
+            timeout.tv_sec = 0;
+            timeout.tv_usec = 100000;
+
+            int nfds = fd_control;
+
+            fd_set rfds;
+            FD_ZERO(&rfds);
+            FD_SET(fd_control, &rfds);
+            if(fd_client != -1) {
+              FD_SET(fd_client, &rfds);
+              if(fd_client > nfds)
+                nfds = fd_client;
+            }
+            FD_SET(pipe_stdout, &rfds);
+            if(pipe_stdout > nfds)
+              nfds = pipe_stdout;
+            FD_SET(pipe_stderr, &rfds);
+            if(pipe_stderr > nfds)
+              nfds = pipe_stderr;
+
+            nfds++;
+
+            if(select(nfds, &rfds, NULL, NULL, &timeout)) {
+              if(FD_ISSET(fd_control, &rfds)) {
+                struct sockaddr_un remote;
+                int len = sizeof(struct sockaddr_un);
+                fd_client = accept(fd_control, (struct sockaddr*)&remote, &len);
+              }
+              if(fd_client != -1 && FD_ISSET(fd_client, &rfds)) {
+                if(handle_talk(fd_client, &job_state) == -1) {
+                  close(fd_client);
+                  fd_client = -1;
+                }
+              }
+              if(FD_ISSET(pipe_stdout, &rfds)) {
+                ssize_t s = read(pipe_stdout, stdout_buf, STDBUF_SIZE);
+                write(fd_stdout, stdout_buf, s);
+              }
+              if(FD_ISSET(pipe_stderr, &rfds)) {
+                ssize_t s = read(pipe_stderr, stderr_buf, STDBUF_SIZE);
+                write(fd_stderr, stderr_buf, s);
+              } 
+            }
+          }
+          break;
+        default: 
+          if(WIFEXITED(status)) {
+            job_state.status = job_done;
+            char txt[10];
+            snprintf(txt, 10, "%d", WEXITSTATUS(status));
+            create_file_content("return_code", txt); 
+            rc = 0;
+          }
+          else if(WIFSIGNALED(status)) {
+            job_state.status = job_done;
+            char txt[10];
+            snprintf(txt, 10, "%d", WTERMSIG(status)+128);
+            create_file_content("return_code", txt); 
+            rc = 0;
+          }
+        }
+      } while(job_state.status == job_started);
+
+      close(pipe_stdout);
+      close(pipe_stderr);
+      unlink("control");
+      unlink("pid");
+
+      write_status(&job_state);
+    }
+
+    close(fd_control);
+  }
+  close(fd_stderr);
+  close(fd_stdout);
+}
+
+int cmd_execute(const char* jobid, const char* cmd) {
+  int fd_pipe_stdout[2]; 
+  int fd_pipe_stderr[2]; 
+  int rc = 1;
 
   if(prepare_new_job(jobid) == 0) {
-    if(create_std_files(&fd_stdout, &fd_stderr) == 0) {
-      if(create_control_socket(&fd_control) == 0) {
+    create_file_content("command", cmd);
 
-        job_state.started_time = time(NULL);
-        job_state.pid = fork();
-        job_state.status = job_started;
+    if(pipe(fd_pipe_stdout) == 0 && pipe(fd_pipe_stderr) == 0) {
+      int pid = fork();
 
-        create_file_content("command", cmd);
-
-        switch(job_state.pid) {
-        case 0: // Child
-          close(0);
-          close(fd_control);
-
-          dup2(fd_stdout, 1);
-          dup2(fd_stderr, 2);
-
-          close(fd_stdout);
-          close(fd_stderr);
-
-          //system(cmd);
-          char* args[4];
-          args[0] = SHELL_BIN;
-          args[1] = "-c";
-          args[2] = (char*)cmd;
-          args[3] = 0;
-
-          execv(SHELL_BIN, args);
-
-          break;
+      switch(pid) {
         case -1: // failure
           perror("fork()");
           return 1;
           break;
+        case 0: // Child
+          close(0);
+          close(fd_pipe_stdout[0]);
+          close(fd_pipe_stderr[0]);
+
+          dup2(fd_pipe_stdout[1], 1);
+          dup2(fd_pipe_stderr[1], 2);
+
+          child(cmd);
+
+          break;
         default: { // parent
-            {
-              char pid[10];
-              snprintf(pid, 10, "%d", job_state.pid);
-              create_file_content("pid", pid); 
-            }
+          close(fd_pipe_stdout[1]);
+          close(fd_pipe_stderr[1]);
 
-            int status;
-
-            do {
-              switch(waitpid(job_state.pid, &status, WNOHANG)) {
-                case -1: // Error
-                  perror("waitpid");
-                  job_state.status = job_done;
-                  break;
-
-                case 0: { // Nothing yet
-                    struct timeval timeout;
-                    timeout.tv_sec = 0;
-                    timeout.tv_usec = 100000;
-
-                    int nfds = fd_control;
-
-                    fd_set rfds;
-                    FD_ZERO(&rfds);
-                    FD_SET(fd_control, &rfds);
-                    if(fd_client != -1) {
-                      FD_SET(fd_client, &rfds);
-                      if(fd_client > nfds)
-                        nfds = fd_client;
-                    }
-
-                    nfds++;
-
-                    if(select(nfds, &rfds, NULL, NULL, &timeout)) {
-                      if(FD_ISSET(fd_control, &rfds)) {
-                        struct sockaddr_un remote;
-                        int len = sizeof(struct sockaddr_un);
-                        fd_client = accept(fd_control, &remote, &len);
-                      }
-                      if(fd_client != -1 && FD_ISSET(fd_client, &rfds)) {
-                        if(handle_talk(fd_client, &job_state) == -1) {
-                          close(fd_client);
-                          fd_client = -1;
-                          }
-                      }
-                    }
-                  }
-                  break;
-                default: 
-                  if(WIFEXITED(status)) {
-                    job_state.status = job_done;
-                    char txt[10];
-                    snprintf(txt, 10, "%d", WEXITSTATUS(status));
-                    create_file_content("return_code", txt); 
-                    rc = 0;
-                  }
-                  else if(WIFSIGNALED(status)) {
-                    job_state.status = job_done;
-                    char txt[10];
-                    snprintf(txt, 10, "%d", WTERMSIG(status)+128);
-                    create_file_content("return_code", txt); 
-                    rc = 0;
-                  }
-              }
-            } while(job_state.status == job_started);
-
-            unlink("control");
-            unlink("pid");
-
-            write_status(&job_state);
-          }
+          rc = parent(pid, fd_pipe_stdout[0], fd_pipe_stderr[0]);
         }
-
-        close(fd_control);
       }
-
-      close(fd_stderr);
-      close(fd_stdout);
+    }
+    else {
+      perror("pipe");
     }
   }
 
