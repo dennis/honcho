@@ -201,9 +201,59 @@ static void child(const char* cmd) {
   execv(SHELL_BIN, args);
 }
 
+static int logical_stamp = 0;
+static int stamping(char* buf, int len) {
+  snprintf(buf, len, "%d: ", logical_stamp++);
+}
+
+static void flush(int fd, char* buf, int len, int* buf_len) {
+  if(*buf_len == 0)
+    return;
+
+  int i;
+  int start = 0;
+  for(i = 0; i < len; i++) {
+    if(buf[i] == '\n') {
+      char stamp[32];
+      stamping(stamp, 32);
+      if(stamp[0])
+        write(fd, stamp, strlen(stamp));
+      write(fd, buf+start, i - start + 1);
+      start = i+1;
+    }
+  }
+
+  if(start == 0) {
+    write(fd, buf, len);
+    start = len;
+  }
+  else {
+    memmove(buf, buf+start, len-start);
+  }
+  *buf_len =- start;
+}
+
+static int handle_input(int infd, char* buf, int* buf_len, int buf_size, int outfd) {
+  ssize_t s = read(infd, buf+(*buf_len), buf_size);
+  if(s < 0) {
+    perror("read");
+    return 0;
+  }
+  
+  int i;
+  for(i = (*buf_len)+s-1; i > 0; i--) {
+    if(buf[i] == '\n') {
+      flush(outfd, buf, (*buf_len) + i, buf_len);
+      break;
+    }
+  }
+
+  *buf_len += s;
+}
+
 static int parent(int pid, int pipe_stdout, int pipe_stderr) {
-  char stdout_buf[STDBUF_SIZE]; stdout_buf[0] = 0;
-  char stderr_buf[STDBUF_SIZE]; stderr_buf[1] = 0;
+  char stdout_buf[STDBUF_SIZE]; int stdout_buflen = 0; stdout_buf[0] = 0;
+  char stderr_buf[STDBUF_SIZE]; int stderr_buflen = 0; stderr_buf[1] = 0;
   int fd_control;
   int fd_stdout, fd_stderr; // for the 'stdout' and 'stderr' files
   int fd_client = -1;
@@ -266,12 +316,10 @@ static int parent(int pid, int pipe_stdout, int pipe_stderr) {
                 }
               }
               if(FD_ISSET(pipe_stdout, &rfds)) {
-                ssize_t s = read(pipe_stdout, stdout_buf, STDBUF_SIZE);
-                write(fd_stdout, stdout_buf, s);
+                handle_input(pipe_stdout, stdout_buf, &stdout_buflen, STDBUF_SIZE, fd_stdout); 
               }
               if(FD_ISSET(pipe_stderr, &rfds)) {
-                ssize_t s = read(pipe_stderr, stderr_buf, STDBUF_SIZE);
-                write(fd_stderr, stderr_buf, s);
+                handle_input(pipe_stderr, stderr_buf, &stderr_buflen, STDBUF_SIZE, fd_stderr); 
               } 
             }
           }
@@ -293,6 +341,9 @@ static int parent(int pid, int pipe_stdout, int pipe_stderr) {
           }
         }
       } while(job_state.status == job_started);
+
+      flush(pipe_stdout, stdout_buf, stdout_buflen, &stdout_buflen);
+      flush(pipe_stderr, stderr_buf, stderr_buflen, &stderr_buflen);
 
       close(pipe_stdout);
       close(pipe_stderr);

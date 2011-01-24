@@ -93,7 +93,7 @@ test_section "honcho execute"
 
 	test_title "file stdout is correct"
 		STDOUT=$(cat $HONCHO_QUEUE_DIR/test-01/stdout)
-		test "x$STDOUT" = $(echo "xping\n")
+		test "x$STDOUT" = "x$(echo "0: ping")"
 		test_okfail $?
 
 	test_title "file stderr is empty"
