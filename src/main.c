@@ -27,24 +27,37 @@ int main(int argc, char *argv[]) {
       return 1;
     }
 
-    if(argc > 2 && strcmp(argv[1], "execute") == 0) {
-      int i;
-      int cmdLen = 0;
+    if(argc > 3 && strcmp(argv[1], "execute") == 0) {
+      int i,j;
       char* cmd = 0;
+      char* jobId = 0;
+      int wait = 0;
 
-      for(i=0; i < argc-3; i++) 
-        cmdLen += strlen(argv[i+3]) + 1; 
+      for(i = 2; i < argc; i++) {
+        if(strcmp("-w", argv[i]) == 0) {
+          wait = 1;
+        }
+        else if(jobId == NULL) {
+          jobId = argv[i];
+        }
+        else {
+          int cmdLen = 0;
+          for(j=i; j < argc; j++) 
+            cmdLen += strlen(argv[j]) + 1; 
 
-      cmd = malloc(cmdLen);
-      for(i=0; i < argc-3; i++) {
-        strcat(cmd, argv[i+3]);
-        strcat(cmd, " ");
+          cmd = malloc(cmdLen);
+
+          for(j=i; j < argc; j++) {
+            strcat(cmd, argv[j]);
+            strcat(cmd, " ");
+          }
+
+          cmd[strlen(cmd)-1] = 0;
+          break;
+        }
       }
 
-      if(argc-3) 
-        cmd[strlen(cmd)-1] = 0;
-
-      return cmd_execute(argv[2], cmd);
+      return cmd_execute(jobId, cmd, wait);
     }
     else if(argc == 4 && strcmp(argv[1], "cat") == 0) {
       return cmd_cat(argv[2], argv[3]);

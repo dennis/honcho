@@ -12,6 +12,8 @@
 #include <fcntl.h>
 #include <time.h>
 #include <sys/un.h>
+#include <stdlib.h>
+
 
 #include "cmd_execute.h"
 #include "queue.h"
@@ -359,10 +361,43 @@ static int parent(int pid, int pipe_stdout, int pipe_stderr) {
   close(fd_stdout);
 }
 
-int cmd_execute(const char* jobid, const char* cmd) {
+static int daemonize() {
+  pid_t pid, sid;
+
+  if ( getppid() == 1 ) return;
+
+  pid = fork();
+
+  if(pid < 0) 
+    exit(EXIT_FAILURE);
+  if(pid > 0) 
+    exit(EXIT_SUCCESS);
+
+  umask(0);
+  sid = setsid();
+
+  if(sid < 0) 
+    exit(EXIT_FAILURE);
+
+  int fd = open("/dev/null", O_RDWR);
+
+  if(fd == -1) 
+    exit(EXIT_FAILURE);
+  
+  dup2(fd, 0);
+  dup2(fd, 1);
+  dup2(fd, 2);
+
+  return 0;
+}
+
+int cmd_execute(const char* jobid, const char* cmd, int wait) {
   int fd_pipe_stdout[2]; 
   int fd_pipe_stderr[2]; 
   int rc = 1;
+
+  if(!wait) 
+    daemonize();
 
   if(prepare_new_job(jobid) == 0) {
     create_file_content("command", cmd);

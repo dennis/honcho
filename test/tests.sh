@@ -77,7 +77,7 @@ fi
 
 test_section "honcho execute"
 	test_title "creates new directory"
-		$HONCHO execute test-01 echo ping > /dev/null
+		$HONCHO execute -w test-01 echo ping > /dev/null
 		test -d $HONCHO_QUEUE_DIR/test-01
 		test_okfail $?
 
