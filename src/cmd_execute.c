@@ -14,10 +14,10 @@
 #include <sys/un.h>
 #include <stdlib.h>
 
-
+#include "config.h"
 #include "cmd_execute.h"
 #include "queue.h"
-#include "config.h"
+#include "utils.h"
 
 #define STDBUF_SIZE 1024
 
@@ -28,25 +28,6 @@ struct job_state_t {
   time_t started_time;
   enum job_status status;
 };
-
-static int create_file_content(const char* filename, const char *data) {
-  int fd = open(filename, O_WRONLY|O_CREAT, FILE_MODE);
-  if(fd == -1) {
-    char error[512];
-    snprintf(error, 512, "Cannot create '%s' for writing", filename);
-    perror(error);
-    return 1;
-  }
-
-  if(write(fd, data, strlen(data)) == -1) {
-    char error[512];
-    snprintf(error, 512, "Cannot write to '%s'", filename);
-    perror(error);
-    return 1;
-  }
-
-  return 0;
-}
 
 static int prepare_new_job(const char* jobid) {
   if(mkdir(jobid, DIR_MODE)==-1) {
@@ -271,7 +252,7 @@ static int parent(int pid, int pipe_stdout, int pipe_stderr) {
     if(create_control_socket(&fd_control) == 0) {
       char pid[10];
       snprintf(pid, 10, "%d", job_state.pid);
-      create_file_content("pid", pid); 
+      put_file("pid", pid); 
       int status;
 
       do {
@@ -331,14 +312,14 @@ static int parent(int pid, int pipe_stdout, int pipe_stderr) {
             job_state.status = job_done;
             char txt[10];
             snprintf(txt, 10, "%d", WEXITSTATUS(status));
-            create_file_content("return_code", txt); 
+            put_file("return_code", txt); 
             rc = 0;
           }
           else if(WIFSIGNALED(status)) {
             job_state.status = job_done;
             char txt[10];
             snprintf(txt, 10, "%d", WTERMSIG(status)+128);
-            create_file_content("return_code", txt); 
+            put_file("return_code", txt); 
             rc = 0;
           }
         }
@@ -400,7 +381,7 @@ int cmd_execute(const char* jobid, const char* cmd, int wait) {
     daemonize();
 
   if(prepare_new_job(jobid) == 0) {
-    create_file_content("command", cmd);
+    put_file("command", cmd);
 
     if(pipe(fd_pipe_stdout) == 0 && pipe(fd_pipe_stderr) == 0) {
       int pid = fork();

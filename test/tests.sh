@@ -117,6 +117,17 @@ test_section "honcho status"
 		diff $HONCHO_QUEUE_DIR/test-01/status $HONCHO_QUEUE_DIR/test-01/status-via-status  >/dev/null
 		test_okfail $?
 
+test_section "honcho submit"
+	test_title "generates a pending file"
+		FILE=$($HONCHO submit ls)
+		test -f $HONCHO_QUEUE_DIR/$FILE.pending
+		test_okfail $?
+
+	test_title "file contains command"
+		CMD=$(cat $HONCHO_QUEUE_DIR/$FILE.pending)
+		test "x$CMD" = "xls"
+		test_okfail $?
+
 test_teardown
 
 expr $TEST_FAIL_COUNT = 0 >/dev/null || exit
