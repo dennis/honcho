@@ -377,13 +377,13 @@ int cmd_execute(const char* queue, const char* jobid, const char* cmd, int wait)
   int fd_pipe_stderr[2]; 
   int rc = 1;
 
-  if(!wait) 
-    daemonize();
-
   if(prepare_new_job(queue, jobid) == 0) {
     put_file("command", cmd);
 
     if(pipe(fd_pipe_stdout) == 0 && pipe(fd_pipe_stderr) == 0) {
+      if(!wait) 
+        daemonize();
+
       int pid = fork();
 
       switch(pid) {
