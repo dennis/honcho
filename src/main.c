@@ -37,56 +37,129 @@ static char* join_args(int argc, char* argv[], int from) {
   return cmd;
 }
 
+static int goto_queue(const char* queue) {
+  if(chdir(get_queuedir(queue))==-1) {
+    perror(get_queuedir(queue));
+    return 1;
+  }
+
+  return 0;
+}
+
+static void usage() {
+  puts("honcho [-q queue-name] execute <ID> <cmd ..>");
+  puts("honcho [-q queue-name] cat <ID> <file>");
+  puts("honcho [-q queue-name] status [ID]");
+  puts("honcho [-q queue-name] submit <cmd ..>");
+}
+
 int main(int argc, char *argv[]) {
+  enum { none, show_usage, do_execute, do_cat, do_status, do_submit };
+
+  char* queue = "default";
   cwd[0] = 0;
+  int cmd = none;
 
   if(getcwd(cwd, PATH_MAX)) {
     atexit(cleanup);
 
-    if(chdir(get_queuedir())==-1) {
-      perror(get_queuedir());
-      return 1;
-    }
-
-    if(argc > 3 && strcmp(argv[1], "execute") == 0) {
-      int i;
-      char* cmd = 0;
-      char* jobId = 0;
-      int wait = 0;
-
-      for(i = 2; i < argc; i++) {
-        if(strcmp("-w", argv[i]) == 0) {
-          wait = 1;
+    int i = 0;
+    for(i = 1; i < argc; i++) {
+      if(cmd == none) {
+        if(strcmp(argv[i], "execute") == 0) {
+          cmd = do_execute;
         }
-        else if(jobId == NULL) {
-          jobId = argv[i];
+        else if(strcmp(argv[i], "cat") == 0) {
+          cmd = do_cat;
+        }
+        else if(strcmp(argv[i], "status") == 0) {
+          cmd = do_status;
+        }
+        else if(strcmp(argv[i], "submit") == 0) {
+          cmd = do_submit;
+        }
+        else if(strcmp("-q", argv[i]) == 0) {
+          if(i+1 < argc) {
+            i++;
+            queue = argv[i];
+          }
+          else {
+            cmd = show_usage;
+            break;
+          }
         }
         else {
-          cmd = join_args(argc, argv, i);
+          cmd = show_usage;
           break;
         }
       }
+      else {
+        break;
+      }
+    }
 
-      return cmd_execute(jobId, cmd, wait);
-    }
-    else if(argc == 4 && strcmp(argv[1], "cat") == 0) {
-      return cmd_cat(argv[2], argv[3]);
-    }
-    else if(argc == 3 && strcmp(argv[1], "status") == 0) {
-      return cmd_status_query(argv[2]);
-    }
-    else if(argc == 2 && strcmp(argv[1], "status") == 0) {
-      return cmd_status_overview();
-    }
-    else if(argc > 2 && strcmp(argv[1], "submit") == 0) {
-      return cmd_submit(join_args(argc, argv, 2));
-    }
-    else {
-      puts("honcho execute <ID> <cmd ..>");
-      puts("honcho cat <ID> <file>");
-      puts("honcho status [ID]");
-      puts("honcho submit <cmd ..>");
+    if(goto_queue(queue) == 1)
       return 1;
+
+    switch(cmd) {
+      case none:
+      case show_usage:
+        usage();
+        return 0;
+        break;
+      case do_execute: {
+          char* cmd = 0;
+          char* jobId = 0;
+          int wait = 0;
+
+          for(; i < argc; i++) {
+            if(strcmp("-w", argv[i]) == 0) {
+              wait = 1;
+            }
+            else if(jobId == NULL) {
+              jobId = argv[i];
+            }
+            else {
+              cmd = join_args(argc, argv, i);
+              break;
+            }
+          }
+
+          if(queue == NULL || jobId == NULL) {
+            usage();
+            return 1;
+          }
+
+          return cmd_execute(queue, jobId, cmd, wait);
+        }
+        break;
+      case do_cat:
+        if(argc-i != 2) {
+          usage();
+          return 1;
+        }
+        return cmd_cat(argv[i], argv[i+1]);
+      case do_status:
+        if(argc-i == 0) {
+          return cmd_status_overview();
+        }
+        else if(argc-i == 1) {
+          return cmd_status_query(argv[i]);
+        }
+        else {
+          usage();
+          return 1;
+        }
+      case do_submit:
+        if(argc - i >= 0) {
+          return cmd_submit(join_args(argc, argv, i)); 
+        }
+        else {
+          usage();
+          return 1;
+        }
+      default:
+        puts("Bad code");
     }
   }
   else {

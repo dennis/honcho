@@ -1,7 +1,7 @@
 #ifndef QUEUE_H_
 #define QUEUE_H_
 
-const char* get_queuedir();
+const char* get_queuedir(const char*);
 
 #endif
 

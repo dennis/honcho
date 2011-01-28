@@ -15,7 +15,11 @@ ECHO=echo
 UNAME=`uname`
 R=0 # return value
 HONCHO=../src/honcho
+
 export HONCHO_QUEUE_DIR=$(mktemp -d)/
+DEFAULT_QUEUE=$HONCHO_QUEUE_DIR/default; mkdir $DEFAULT_QUEUE
+FOOBAR_QUEUE=$HONCHO_QUEUE_DIR/foobar; mkdir $FOOBAR_QUEUE
+
 export TZ="Europe/Copenhagen"
 
 test_section() {
@@ -78,54 +82,75 @@ fi
 test_section "honcho execute"
 	test_title "creates new directory"
 		$HONCHO execute -w test-01 echo ping > /dev/null
-		test -d $HONCHO_QUEUE_DIR/test-01
+		test -d $DEFAULT_QUEUE/test-01
 		test_okfail $?
 
 	test_title "file return_code is zero"
-		RC=$(cat $HONCHO_QUEUE_DIR/test-01/return_code)
+		RC=$(cat $DEFAULT_QUEUE/test-01/return_code)
 		test "x$RC" = "x0"
 		test_okfail $?
 
 	test_title "file command is correct"
-		CMD=$(cat $HONCHO_QUEUE_DIR/test-01/command)
+		CMD=$(cat $DEFAULT_QUEUE/test-01/command)
 		test "x$CMD" = "xecho ping"
 		test_okfail $?
 
 	test_title "file stdout is correct"
-		STDOUT=$(cat $HONCHO_QUEUE_DIR/test-01/stdout)
+		STDOUT=$(cat $DEFAULT_QUEUE/test-01/stdout)
 		test "x$STDOUT" = "x$(echo "0: ping")"
 		test_okfail $?
 
 	test_title "file stderr is empty"
-		STDERR=$(cat $HONCHO_QUEUE_DIR/test-01/stderr)
+		STDERR=$(cat $DEFAULT_QUEUE/test-01/stderr)
 		test "x$STDERR" = "x"
 		test_okfail $?
 
 	test_title "file status is done"
-		cat $HONCHO_QUEUE_DIR/test-01/status | grep "status: done"  >/dev/null
+		cat $DEFAULT_QUEUE/test-01/status | grep "status: done"  >/dev/null
 		test_okfail $?
 
 test_section "honcho cat"
 	test_title "is able to show stdout"
-		$HONCHO cat test-01 stdout >$HONCHO_QUEUE_DIR/test-01/stdout-via-cat
-		diff $HONCHO_QUEUE_DIR/test-01/stdout $HONCHO_QUEUE_DIR/test-01/stdout-via-cat >/dev/null
+		$HONCHO cat test-01 stdout >$DEFAULT_QUEUE/test-01/stdout-via-cat
+		diff $DEFAULT_QUEUE/test-01/stdout $DEFAULT_QUEUE/test-01/stdout-via-cat >/dev/null
 		test_okfail $?
 
 test_section "honcho status"
 	test_title "displays status file (!running)"
-		$HONCHO status test-01 >$HONCHO_QUEUE_DIR/test-01/status-via-status
-		diff $HONCHO_QUEUE_DIR/test-01/status $HONCHO_QUEUE_DIR/test-01/status-via-status  >/dev/null
+		$HONCHO status test-01 >$DEFAULT_QUEUE/test-01/status-via-status
+		diff $DEFAULT_QUEUE/test-01/status $DEFAULT_QUEUE/test-01/status-via-status  >/dev/null
 		test_okfail $?
 
 test_section "honcho submit"
 	test_title "generates a pending file"
 		FILE=$($HONCHO submit ls)
-		test -f $HONCHO_QUEUE_DIR/$FILE.pending
+		test -f $DEFAULT_QUEUE/$FILE.pending
 		test_okfail $?
 
 	test_title "file contains command"
-		CMD=$(cat $HONCHO_QUEUE_DIR/$FILE.pending)
+		CMD=$(cat $DEFAULT_QUEUE/$FILE.pending)
 		test "x$CMD" = "xls"
+		test_okfail $?
+
+test_section "multiple queues"
+	test_title "works with execute"
+		$HONCHO -q foobar execute -w test-02 echo test
+		test -d $FOOBAR_QUEUE/test-02 && test -e $FOOBAR_QUEUE/test-02/command
+		test_okfail $?
+
+	test_title "works with cat"
+		$HONCHO -q foobar cat test-02 stdout >$FOOBAR_QUEUE/test-02/stdout-via-cat
+		diff $FOOBAR_QUEUE/test-02/stdout $FOOBAR_QUEUE/test-02/stdout-via-cat >/dev/null
+		test_okfail $?
+	
+	test_title "works with status"
+		$HONCHO -q foobar status test-02 >$FOOBAR_QUEUE/test-02/status-via-status
+		diff $FOOBAR_QUEUE/test-02/status $FOOBAR_QUEUE/test-02/status-via-status  >/dev/null
+		test_okfail $?
+
+	test_title "works with submit"
+		FILE=$($HONCHO -q foobar submit ls)
+		test -f $FOOBAR_QUEUE/$FILE.pending
 		test_okfail $?
 
 test_teardown

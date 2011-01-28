@@ -29,7 +29,7 @@ struct job_state_t {
   enum job_status status;
 };
 
-static int prepare_new_job(const char* jobid) {
+static int prepare_new_job(const char* queue, const char* jobid) {
   if(mkdir(jobid, DIR_MODE)==-1) {
     if(errno == EEXIST) {
       const char* error = "job-id already used, ignoring\n";
@@ -37,7 +37,7 @@ static int prepare_new_job(const char* jobid) {
     }
     else {
       char error[512];
-      snprintf(error, 512, "Cannot create %s/%s", get_queuedir(), jobid);
+      snprintf(error, 512, "Cannot create %s/%s", get_queuedir(queue), jobid);
       perror(error);
     }
     return 1;
@@ -372,7 +372,7 @@ static int daemonize() {
   return 0;
 }
 
-int cmd_execute(const char* jobid, const char* cmd, int wait) {
+int cmd_execute(const char* queue, const char* jobid, const char* cmd, int wait) {
   int fd_pipe_stdout[2]; 
   int fd_pipe_stderr[2]; 
   int rc = 1;
@@ -380,7 +380,7 @@ int cmd_execute(const char* jobid, const char* cmd, int wait) {
   if(!wait) 
     daemonize();
 
-  if(prepare_new_job(jobid) == 0) {
+  if(prepare_new_job(queue, jobid) == 0) {
     put_file("command", cmd);
 
     if(pipe(fd_pipe_stdout) == 0 && pipe(fd_pipe_stderr) == 0) {
