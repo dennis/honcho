@@ -8,7 +8,7 @@ AM_INIT_AUTOMAKE($PACKAGE_NAME, $PACKAGE_VERSION)
 
 AC_PROG_LIBTOOL
 
-AC_DEFINE(QUEUE_DIR, "./queue/", [Default queue directory])
+AC_DEFINE(DATA_DIR, "./queue/", [Data directory])
 AC_DEFINE(FILE_MODE, 0666, [Base file permission])
 AC_DEFINE(DIR_MODE, 0777, [Base directory permission])
 AC_DEFINE(SHELL_BIN, "/bin/sh", [Shell binary])

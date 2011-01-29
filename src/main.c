@@ -9,6 +9,7 @@
 #include "cmd_execute.h"
 #include "cmd_status_overview.h"
 #include "cmd_status_query.h"
+#include "cmd_state.h"
 
 static char cwd[PATH_MAX];
 
@@ -51,10 +52,11 @@ static void usage() {
   puts("honcho [-q queue-name] cat <ID> <file>");
   puts("honcho [-q queue-name] status [ID]");
   puts("honcho [-q queue-name] submit <cmd ..>");
+  puts("honcho state [new-state]");
 }
 
 int main(int argc, char *argv[]) {
-  enum { none, show_usage, do_execute, do_cat, do_status, do_submit };
+  enum { none, show_usage, do_execute, do_cat, do_status, do_submit, do_state };
 
   char* queue = "default";
   cwd[0] = 0;
@@ -77,6 +79,9 @@ int main(int argc, char *argv[]) {
         }
         else if(strcmp(argv[i], "submit") == 0) {
           cmd = do_submit;
+        }
+        else if(strcmp(argv[i], "state") == 0) {
+          cmd = do_state;
         }
         else if(strcmp("-q", argv[i]) == 0) {
           if(i+1 < argc) {
@@ -153,6 +158,17 @@ int main(int argc, char *argv[]) {
       case do_submit:
         if(argc - i >= 0) {
           return cmd_submit(join_args(argc, argv, i)); 
+        }
+        else {
+          usage();
+          return 1;
+        }
+      case do_state:
+        if(argc-i == 0) {
+          return cmd_state(NULL);
+        }
+        else if(argc-i == 1) {
+          return cmd_state(argv[i]);
         }
         else {
           usage();

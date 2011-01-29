@@ -16,9 +16,9 @@ UNAME=`uname`
 R=0 # return value
 HONCHO=../src/honcho
 
-export HONCHO_QUEUE_DIR=$(mktemp -d)/
-DEFAULT_QUEUE=$HONCHO_QUEUE_DIR/default; mkdir $DEFAULT_QUEUE
-FOOBAR_QUEUE=$HONCHO_QUEUE_DIR/foobar; mkdir $FOOBAR_QUEUE
+export HONCHO_DIR=$(mktemp -d)/
+DEFAULT_QUEUE=$HONCHO_DIR/queue/default; mkdir -p $DEFAULT_QUEUE
+FOOBAR_QUEUE=$HONCHO_DIR/queue/foobar; mkdir -p $FOOBAR_QUEUE
 
 export TZ="Europe/Copenhagen"
 
@@ -47,7 +47,7 @@ test_title() {
 }
 
 test_teardown() {
-	rm -r $HONCHO_QUEUE_DIR
+	rm -r $HONCHO_DIR
 }
 
 test_okfail() {
@@ -151,6 +151,20 @@ test_section "multiple queues"
 	test_title "works with submit"
 		FILE=$($HONCHO -q foobar submit ls)
 		test -f $FOOBAR_QUEUE/$FILE.pending
+		test_okfail $?
+
+test_section "honcho state"
+	test_title "defaults to 'online'"
+		STATE=$($HONCHO state)
+		test "x$STATE" = "xonline"
+		test_okfail $?
+
+	test_title "can be changed to 'silly'"
+		STATE=$($HONCHO state silly)
+		test_okfail $?
+
+	test_title "is stored in data directory"
+		test -e $HONCHO_DIR/state
 		test_okfail $?
 
 test_teardown
