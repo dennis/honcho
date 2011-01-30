@@ -1,5 +1,6 @@
 #include <stdlib.h>
 #include <limits.h>
+#include <string.h>
 
 #include "queue.h"
 #include "config.h"
