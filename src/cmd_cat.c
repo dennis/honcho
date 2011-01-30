@@ -4,7 +4,6 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 
-#include "queue.h"
 #include "cmd_cat.h"
 #include "utils.h"
 

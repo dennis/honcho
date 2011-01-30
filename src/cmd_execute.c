@@ -16,7 +16,6 @@
 
 #include "config.h"
 #include "cmd_execute.h"
-#include "queue.h"
 #include "utils.h"
 
 #define STDBUF_SIZE 1024

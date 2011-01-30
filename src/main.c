@@ -3,7 +3,7 @@
 #include <unistd.h>
 #include <stdlib.h>
 
-#include "queue.h"
+#include "utils.h"
 #include "cmd_cat.h"
 #include "cmd_submit.h"
 #include "cmd_execute.h"

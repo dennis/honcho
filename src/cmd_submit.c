@@ -1,7 +1,6 @@
 #include <stdio.h>
 #include <uuid/uuid.h>
 
-#include "queue.h"
 #include "cmd_submit.h"
 #include "utils.h"
 
