@@ -8,10 +8,21 @@ AM_INIT_AUTOMAKE($PACKAGE_NAME, $PACKAGE_VERSION)
 
 AC_PROG_LIBTOOL
 
-AC_DEFINE(DATA_DIR, "./queue/", [Data directory])
 AC_DEFINE(FILE_MODE, 0666, [Base file permission])
 AC_DEFINE(DIR_MODE, 0777, [Base directory permission])
 AC_DEFINE(SHELL_BIN, "/bin/sh", [Shell binary])
+
+data_dir='$(prefix)/var/spool/honcho'
+AC_ARG_WITH(data_dir,
+	[AS_HELP_STRING(--with-data-dir=DIR, 
+		[Location of honcho spool directory]
+		@<:@default: /var/spool/honcho@:>@
+	)],
+	[ data_dir="$withval" ])
+AC_MSG_CHECKING([for spool directory])
+AC_MSG_RESULT([$data_dir])
+AC_SUBST(data_dir)
+#AC_DEFINE(DATA_DIR, data_dir, [Data directory])
 
 AC_ARG_ENABLE([debug],
               AC_HELP_STRING([--enable-debug],
