@@ -1,6 +1,3 @@
-#include "utils.h"
-#include "config.h"
-
 #include <fcntl.h>
 #include <limits.h>
 #include <stdio.h>
@@ -8,6 +5,9 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+
+#include "utils.h"
+#include "config.h"
 
 char queuedir[PATH_MAX];
 
