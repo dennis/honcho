@@ -16,7 +16,7 @@ UNAME=`uname`
 R=0 # return value
 HONCHO=../src/honcho
 
-export HONCHO_DIR=$(mktemp -d)/
+export HONCHO_DIR=$(mktemp -d)
 DEFAULT_QUEUE=$HONCHO_DIR/queue/default; mkdir -p $DEFAULT_QUEUE
 FOOBAR_QUEUE=$HONCHO_DIR/queue/foobar; mkdir -p $FOOBAR_QUEUE
 
@@ -149,6 +149,15 @@ test_section "honcho state"
 
 	test_title "is stored in data directory"
 		test -e $HONCHO_DIR/state
+		test_okfail $?
+
+test_section "honcho path"
+	test_title "without arguments"
+		test "x$($HONCHO path)" = "x$DEFAULT_QUEUE"
+		test_okfail $?
+		
+	test_title "with id"
+		test "x$($HONCHO path test-01)" = "x$DEFAULT_QUEUE/test-01"
 		test_okfail $?
 
 test_teardown
