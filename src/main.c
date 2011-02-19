@@ -51,11 +51,12 @@ static void usage() {
   puts("honcho [-q queue-name] cat <ID> <file>");
   puts("honcho [-q queue-name] status [ID]");
   puts("honcho [-q queue-name] path [ID]");
+  puts("honcho [-q queue-name] delete [ID]");
   puts("honcho state [new-state]");
 }
 
 int main(int argc, char *argv[]) {
-  enum { none, show_usage, do_execute, do_cat, do_status, do_state, do_path };
+  enum { none, show_usage, do_execute, do_cat, do_status, do_state, do_path, do_delete };
 
   char* queue = "default";
   cwd[0] = 0;
@@ -81,6 +82,9 @@ int main(int argc, char *argv[]) {
         }
         else if(strcmp(argv[i], "path") == 0) {
           cmd = do_path;
+        }
+        else if(strcmp(argv[i], "delete") == 0) {
+          cmd = do_delete;
         }
         else if(strcmp("-q", argv[i]) == 0) {
           if(i+1 < argc) {
@@ -171,6 +175,14 @@ int main(int argc, char *argv[]) {
         }
         else {
           return cmd_path(argv[i]);
+        }
+      case do_delete:
+        if(argc-i == 1) {
+          return cmd_delete(argv[i]);
+        }
+        else {
+          usage();
+          return 1;
         }
       default:
         puts("Bad code");

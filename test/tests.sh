@@ -160,6 +160,12 @@ test_section "honcho path"
 		test "x$($HONCHO path test-01)" = "x$DEFAULT_QUEUE/test-01"
 		test_okfail $?
 
+test_section "honcho delete"
+	test_title "remove test-02"
+		$HONCHO -q foobar delete test-02
+		test -e $FOOBAR_QUEUE/test-02
+		test_failok $?
+
 test_teardown
 
 expr $TEST_FAIL_COUNT = 0 >/dev/null || exit
