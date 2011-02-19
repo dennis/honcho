@@ -13,6 +13,7 @@
 #include <time.h>
 #include <sys/un.h>
 #include <stdlib.h>
+#include <signal.h>
 
 #include "config.h"
 #include "cmd_execute.h"
@@ -150,6 +151,14 @@ static int handle_talk(int fd, struct job_state_t* job_state) {
     dump_status(fd, job_state);
     return -1;
   }
+  if(strncmp("SIGNAL ", buffer, 7) == 0) {
+    int signum = atoi(&buffer[7]);
+    if(killpg(job_state->pid, signum) == -1) {
+      strerror_r(errno, buffer, 1023);
+      write(fd, buffer, strlen(buffer));
+    }
+    return -1;
+  }
   else {
     int i;
     for(i=0; i < buffer_len; i++)
@@ -173,7 +182,8 @@ static void write_status(struct job_state_t* job_state) {
 }
 
 static void child(const char* cmd) {
-  //system(cmd);
+  setpgrp();
+
   char* args[4];
   args[0] = SHELL_BIN;
   args[1] = "-c";

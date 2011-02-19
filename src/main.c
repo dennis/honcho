@@ -7,6 +7,7 @@
 #include "cmd_cat.h"
 #include "cmd_execute.h"
 #include "cmd_state.h"
+#include "cmd_signal.h"
 #include "cmd_status_overview.h"
 #include "cmd_status_query.h"
 
@@ -51,12 +52,13 @@ static void usage() {
   puts("honcho [-q queue-name] cat <ID> <file>");
   puts("honcho [-q queue-name] status [ID]");
   puts("honcho [-q queue-name] path [ID]");
-  puts("honcho [-q queue-name] delete [ID]");
+  puts("honcho [-q queue-name] signal <ID> <signum>");
+  puts("honcho [-q queue-name] delete <ID>");
   puts("honcho state [new-state]");
 }
 
 int main(int argc, char *argv[]) {
-  enum { none, show_usage, do_execute, do_cat, do_status, do_state, do_path, do_delete };
+  enum { none, show_usage, do_execute, do_cat, do_status, do_state, do_path, do_delete, do_signal };
 
   char* queue = "default";
   cwd[0] = 0;
@@ -85,6 +87,9 @@ int main(int argc, char *argv[]) {
         }
         else if(strcmp(argv[i], "delete") == 0) {
           cmd = do_delete;
+        }
+        else if(strcmp(argv[i], "signal") == 0) {
+          cmd = do_signal;
         }
         else if(strcmp("-q", argv[i]) == 0) {
           if(i+1 < argc) {
@@ -184,6 +189,14 @@ int main(int argc, char *argv[]) {
           usage();
           return 1;
         }
+      case do_signal:
+        if(argc-i == 2) {
+          int signum = atoi(argv[i+1]);
+          if(signum > 0 && signum < 32)
+            return cmd_signal(argv[i], signum);
+        }
+        usage();
+        return 1;
       default:
         puts("Bad code");
     }

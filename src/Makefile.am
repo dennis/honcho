@@ -6,6 +6,7 @@ honcho_SOURCES = main.c \
 	cmd_execute.c cmd_execute.h \
 	cmd_path.c cmd_path.h \
 	cmd_state.c cmd_state.h \
+	cmd_signal.c cmd_signal.h \
 	cmd_status_overview.c cmd_status_overview.h \
 	cmd_status_query.c cmd_status_query.h \
 	utils.c utils.h 

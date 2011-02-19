@@ -166,6 +166,25 @@ test_section "honcho delete"
 		test -e $FOOBAR_QUEUE/test-02
 		test_failok $?
 
+test_section "honcho signal"
+	test_title "start new job"
+		$HONCHO execute test-03 sleep 60
+		test_okfail $?
+
+	test_title "..started"
+		$HONCHO status test-03 |grep "status: running" >/dev/null
+		test_okfail $?
+
+	test_title "..kill it"
+		$HONCHO signal test-03 9
+		test_okfail $?
+
+	test_title "..and now stopped"
+		sleep 1
+		$HONCHO status test-03 |grep "status: done" >/dev/null
+		test_okfail $?
+
+
 test_teardown
 
 expr $TEST_FAIL_COUNT = 0 >/dev/null || exit

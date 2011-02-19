@@ -5,6 +5,8 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <sys/socket.h>
+#include <sys/un.h>
 
 #include "utils.h"
 #include "config.h"
@@ -81,5 +83,25 @@ const char* get_queuedir(const char* name) {
   return queuedir;
 }
 
+int connect_to_control_socket() {
+  struct sockaddr_un remote;
+  int fd;
+
+  if ((fd = socket(AF_UNIX, SOCK_STREAM, 0)) == -1) {
+    perror("socket");
+    return -1;
+  }
+
+  remote.sun_family = AF_UNIX;
+  strcpy(remote.sun_path, "control");
+  int len = strlen(remote.sun_path) + sizeof(remote.sun_family);
+
+  if (connect(fd, (struct sockaddr *)&remote, len) == -1) {
+    close(fd);
+    return -1;
+  }
+
+  return fd;
+}
 
 // vim: ts=2:sw=2:et:ai:tw=0
