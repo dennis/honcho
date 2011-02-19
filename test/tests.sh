@@ -121,17 +121,6 @@ test_section "honcho status"
 		diff $DEFAULT_QUEUE/test-01/status $DEFAULT_QUEUE/test-01/status-via-status  >/dev/null
 		test_okfail $?
 
-test_section "honcho submit"
-	test_title "generates a pending file"
-		FILE=$($HONCHO submit ls)
-		test -f $DEFAULT_QUEUE/$FILE.pending
-		test_okfail $?
-
-	test_title "file contains command"
-		CMD=$(cat $DEFAULT_QUEUE/$FILE.pending)
-		test "x$CMD" = "xls"
-		test_okfail $?
-
 test_section "multiple queues"
 	test_title "works with execute"
 		$HONCHO -q foobar execute -w test-02 echo test
@@ -146,11 +135,6 @@ test_section "multiple queues"
 	test_title "works with status"
 		$HONCHO -q foobar status test-02 >$FOOBAR_QUEUE/test-02/status-via-status
 		diff $FOOBAR_QUEUE/test-02/status $FOOBAR_QUEUE/test-02/status-via-status  >/dev/null
-		test_okfail $?
-
-	test_title "works with submit"
-		FILE=$($HONCHO -q foobar submit ls)
-		test -f $FOOBAR_QUEUE/$FILE.pending
 		test_okfail $?
 
 test_section "honcho state"
